@@ -1,4 +1,4 @@
-# D3 Exploration
+# d3-exploration
 
 To explore the capabilities of D3, I created a visualization of the effect of cryptocurrency on visual computing stocks (such as Nvidia). This project is for learning purposes only and is not meant to be used in drawing any citable conclusions.
 
