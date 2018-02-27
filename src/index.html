@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>Effect of Cryptocurrency on Visual Computing Stocks</title>
+        <link rel="icon" href="favicon.png" />
+        <link rel="stylesheet" href="/main.css" />
+    </head>
+
+    <body>
+        <h1>Effect of Cryptocurrency on Visual Computing Stocks</h1>
+
+        <div id="charts" class="card large"></div>
+        <div id="overview" class="card small">
+            <div class="radio-group">
+                <input type="radio" class="radio-button" name="relative-time" value="3m" id="3m" />
+                <label for="3m">3m</label>
+                <input type="radio" class="radio-button" name="relative-time" value="6m" id="6m" />
+                <label for="6m">6m</label>
+                <input type="radio" class="radio-button" name="relative-time" value="1y" id="1y" />
+                <label for="1y">1y</label>
+                <input type="radio" class="radio-button" name="relative-time" value="2y" id="2y" checked />
+                <label for="2y">2y</label>
+                <input type="radio" class="radio-button" name="relative-time" value="5y" id="5y" />
+                <label for="5y">5y</label>
+            </div>
+        </div>
+
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+
+        <script>
+            drawCharts("2y");
+
+            $('input[name="relative-time"]').change(function() {
+                drawCharts($(this).val());
+            });
+
+            function drawCharts(time) {
+                var relativeTime = time.substring(0, 1),
+                    relativeType = (time.substring(1, 2) === 'y' ? 'years' : 'months');
+
+                var parseTime = d3.timeParse('%Y-%m-%d'),
+                    bisectDate = d3.bisector(function (d) { return d.time }).left,
+                    formatValue = d3.format(',.2f'),
+                    formatCurrency = function (d) { return '$' + formatValue(d) };
+
+                var charts = d3.select('#charts'),
+                    overview = d3.select('#overview');
+
+                charts.selectAll('svg').remove();
+                overview.selectAll('span').remove();
+                overview.selectAll('h1').remove();
+
+                // BITCOIN CHART
+                axios.get('https://api.coindesk.com/v1/bpi/historical/close.json', {
+                        params: {
+                            start: moment().subtract(relativeTime, relativeType).format("YYYY-MM-DD"),
+                            end: moment().format("YYYY-MM-DD")
+                        }
+                    })
+                .then(function (response) {
+                    var bitcoinData = [];
+                    Object.keys(response.data.bpi).forEach((key) => {
+                        bitcoinData.push({
+                            time: parseTime(key),
+                            price: response.data.bpi[key]
+                        })
+                    });
+
+                    var firstPrice = bitcoinData[0].price,
+                        lastPrice = bitcoinData[bitcoinData.length - 1].price,
+                        difference = lastPrice - firstPrice,
+                        percentage = (difference / firstPrice) * 100,
+                        sinceFormat = (relativeType === 'years' ? 'YYYY' : 'MMMM YYYY');
+
+                    overview.append('span').attr('class', 'key blue').html('&nbsp;');
+                    overview.append('span').text('BITCOIN');
+                    overview
+                        .append('h1')
+                        .text('+' + percentage.toFixed(2) + '%')
+                        .append('small')
+                        .attr('class', 'small-text')
+                        .text('since ' + moment().subtract(relativeTime, relativeType).format(sinceFormat));
+
+                    var bitcoinChart = charts.append('svg')
+                        .attr('width', 791)
+                        .attr('height', 300);
+
+                    var margin = { top: 20, right: 20, bottom: 30, left: 50 },
+                        width = +bitcoinChart.attr('width') - margin.left - margin.right,
+                        bitcoinHeight = +bitcoinChart.attr('height') - margin.top - margin.bottom,
+                        bitcoinG = bitcoinChart.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+                    var bitcoinX = d3.scaleTime()
+                        .rangeRound([0, width]);
+
+                    var bitcoinY = d3.scaleLinear()
+                        .rangeRound([bitcoinHeight, 0]);
+
+                    var line = d3.line()
+                        .x(function (d) { return bitcoinX(d.time); })
+                        .y(function (d) { return bitcoinY(d.price); });
+
+                    bitcoinX.domain(d3.extent(bitcoinData, function (d) { return d.time; }));
+                    bitcoinY.domain(d3.extent(bitcoinData, function (d) { return d.price; }));
+
+                    var xAxis = bitcoinG.append('g')
+                        .attr('transform', 'translate(0,' + bitcoinHeight + ')')
+                        .call(d3.axisBottom(bitcoinX));
+
+                    xAxis.select('.domain').remove();
+
+                    var yAxis = bitcoinG.append('g')
+                        .call(d3.axisLeft(bitcoinY).ticks(null, '$.0s'))
+
+                    yAxis.select('.domain').remove();
+                    yAxis.selectAll('.tick line').attr('x2', width);
+
+                    var path = bitcoinG.append('path')
+                        .datum(bitcoinData)
+                        .attr('class', 'line blue')
+                        .attr('d', line);
+
+                    // STOCK CHART
+                    axios.get('https://api.iextrading.com/1.0/stock/nvda/chart', {
+                        params: {
+                            types: 'quote,news,chart',
+                            range: relativeTime + relativeType.substring(0, 1),
+                            last: '1'
+                        }
+                    })
+                    .then(function (response) {
+                        var nvdaData = [];
+                        Object.keys(response.data).forEach((key) => {
+                            nvdaData.push({
+                                time: parseTime(response.data[key].date),
+                                close: response.data[key].close
+                            })
+                        });
+
+                        var firstPrice = nvdaData[0].close,
+                            lastPrice = nvdaData[nvdaData.length - 1].close,
+                            difference = lastPrice - firstPrice,
+                            percentage = (difference / firstPrice) * 100;
+
+                        overview.append('span').attr('class', 'key green').html('&nbsp;');
+                        overview.append('span').text('NVDA');
+                        overview
+                            .append('h1')
+                            .text('+' + percentage.toFixed(2) + '%')
+                            .append('small')
+                            .attr('class', 'small-text')
+                            .text('since ' + moment().subtract(relativeTime, relativeType).format(sinceFormat));
+
+                        var stockChart = charts.append('svg')
+                            .attr('width', 791)
+                            .attr('height', 200);
+
+                        var margin = { top: 20, right: 20, bottom: 30, left: 50 },
+                            width = +stockChart.attr('width') - margin.left - margin.right,
+                            height = +stockChart.attr('height') - margin.top - margin.bottom,
+                            g = stockChart.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+                        var x = d3.scaleTime()
+                            .rangeRound([0, width]);
+
+                        var y = d3.scaleLinear()
+                            .rangeRound([height, 0]);
+
+                        var line = d3.line()
+                            .x(function (d) { return x(d.time); })
+                            .y(function (d) { return y(d.close); });
+
+                        x.domain(d3.extent(nvdaData, function (d) { return d.time; }));
+                        y.domain(d3.extent(nvdaData, function (d) { return d.close; }));
+
+                        var xAxis = g.append('g')
+                            .attr('transform', 'translate(0,' + height + ')')
+                            .call(d3.axisBottom(x));
+
+                        xAxis.select('.domain').remove();
+
+                        var yAxis = g.append('g')
+                            .call(d3.axisLeft(y).ticks(6))
+
+                        yAxis.select('.domain').remove();
+                        yAxis.selectAll('.tick line').attr('x2', width);
+
+                        var path = g.append('path')
+                            .datum(nvdaData)
+                            .attr('class', 'line green')
+                            .attr('d', line);
+
+                        var bitcoinFocus = bitcoinG.append('g')
+                            .attr('class', 'focus')
+                            .style('display', 'none');
+
+                        bitcoinFocus.append('circle')
+                            .attr('fill', 'none')
+                            .attr('stroke', '#2196f3')
+                            .attr('r', 4.5);
+
+                        bitcoinFocus.append('text')
+                            .attr('x', 9)
+                            .attr('dy', '.35em');
+
+                        bitcoinG.append('rect')
+                            .attr('class', 'overlay')
+                            .attr('fill', 'transparent')
+                            .attr('width', width)
+                            .attr('height', bitcoinHeight)
+                            .on('mouseover', function () {
+                                bitcoinFocus.style('display', null);
+                                nvdaFocus.style('display', null); 
+                            })
+                            .on('mouseout', function () {
+                                bitcoinFocus.style('display', 'none');
+                                nvdaFocus.style('display', 'none'); 
+                            })
+                            .on('mousemove', mousemove);
+
+                        var nvdaFocus = g.append('g')
+                            .attr('class', 'focus')
+                            .style('display', 'none');
+
+                        nvdaFocus.append('circle')
+                            .attr('fill', 'none')
+                            .attr('stroke', '#2196f3')
+                            .attr('r', 4.5);
+
+                        nvdaFocus.append('text')
+                            .attr('x', 9)
+                            .attr('dy', '.35em');
+
+                        g.append('rect')
+                            .attr('class', 'overlay')
+                            .attr('fill', 'transparent')
+                            .attr('width', width)
+                            .attr('height', height)
+                            .on('mouseover', function () { 
+                                bitcoinFocus.style('display', null); 
+                                nvdaFocus.style('display', null); 
+                            })
+                            .on('mouseout', function () {
+                                bitcoinFocus.style('display', 'none'); 
+                                nvdaFocus.style('display', 'none');
+                            })
+                            .on('mousemove', mousemove);
+
+                        function mousemove() {
+                            var x0 = x.invert(d3.mouse(this)[0]),
+                                i = bisectDate(nvdaData, x0, 1),
+                                d0 = nvdaData[i - 1],
+                                d1 = nvdaData[i],
+                                d = x0 - d0.time > d1.time - x0 ? d1 : d0;
+                            nvdaFocus.attr('transform', 'translate(' + x(d.time) + ',' + y(d.close) + ')');
+                            nvdaFocus.select('text').text(d.close);
+
+                            var i = bisectDate(bitcoinData, x0, 1),
+                                d0 = bitcoinData[i - 1],
+                                d1 = bitcoinData[i],
+                                d = x0 - d0.time > d1.time - x0 ? d1 : d0;
+                            bitcoinFocus.attr('transform', 'translate(' + bitcoinX(d.time) + ',' + bitcoinY(d.price) + ')');
+                            bitcoinFocus.select('text').text(formatCurrency(d.price));
+                        }
+                    });
+                });
+            }
+        </script>
+    </body>
+</html>

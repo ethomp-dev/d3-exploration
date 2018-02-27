@@ -1,0 +1,102 @@
+body,
+svg text {
+    font-family: "Circular STD", sans-serif;
+    background: #f8f9fa;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 1% 2.5%;
+}
+
+.card {
+    background: #fff;
+    padding: 2.5%;
+    float: left;
+}
+
+.card:not(:last-of-type) {
+    margin-right: 2.5%;
+}
+
+.card.small {
+    width: 22.25%;
+}
+
+.card.large {
+    width: 65%;
+}
+
+.key {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+.key.blue {
+    background: #2196f3;
+}
+
+.key.green {
+    background: #37c5ab;
+}
+
+.small-text {
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.radio-group {
+    clear: both;
+    display: block;
+    height: 60px;
+}
+
+.radio-button {
+    position: absolute;
+    left: -9999em;
+    top: -9999em;
+}
+
+.radio-button + label {
+    float: left;
+    padding: .5em 1em;
+    cursor: pointer;
+    border: 1px solid #eec300;
+    margin-right: -1px;
+    color: #eec300;
+    background-color: transparent;
+}
+
+.radio-button:checked + label {
+    color: #fff;
+    background-color: #eec300;
+}
+
+svg .line {
+    fill: none;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    stroke-width: 1.5;
+}
+
+svg .line.blue {
+    stroke: #2196f3;
+}
+
+svg .line.green {
+    stroke: #37c5ab;
+}
+
+svg .tick line {
+    stroke: #ddd;
+}
+
+svg .tick text {
+    fill: #777;
+    font-size: 16px;
+}
+
+svg .overlay {
+  pointer-events: all;
+}
